@@ -2,7 +2,6 @@
   Sensor node
   Gather temperature and humidity and send them to a master node
 */
-
 #include <DHT.h>
 #include <SPI.h>
 #include <RF24Network.h>
@@ -23,16 +22,19 @@ const uint16_t thisNode = 1;
 const uint16_t otherNode = 0;
 
 // Init DHT22 sensor
-DHT dht(DHT22_PIN, DHTTYPE);
+DHT dht(DHT22_PIN, DHTTYPE, 3);
+
 
 ISR(WDT_vect) { Sleepy::watchdogEvent(); }
 
 void blink(int times) {
   for(int i=0; i<times; i++) {
      digitalWrite(LED_PIN, HIGH);
-     delay(5000); 
+     delay(1000); 
      digitalWrite(LED_PIN, LOW);
-     delay(5000);
+     if (i<times) {
+       delay(1000);
+     }
   }
 }
 
@@ -69,9 +71,7 @@ static void setPrescaler (uint8_t mode) {
     sei();
 }
 
-void setup () {
-  setPrescaler(4); // Reduce clock speed to 1 MHz
-  
+void setup () {  
   // LED
   pinMode(LED_PIN, OUTPUT);
   // button
@@ -96,19 +96,20 @@ void setup () {
 void loop() {
   // pump network
   network.update();
-  setPrescaler(0);  // Reset clock speed to 16 MHz to get a reliable reading from the sensors
+  setPrescaler(0);  // Reset clock speed to 8 MHz to get a reliable reading from the sensors
   
   // Reading temperature or humidity takes about 250 milliseconds!
   // Sensor readings may also be up to 2 seconds 'old' (its a very slow sensor)
   float t = dht.readTemperature();
   float h = dht.readHumidity();
-  
-  setPrescaler(4);  // Reduce clock speed back to 1 MHz
+
+  setPrescaler(3);  // Reduce clock speed back to 1 MHz while sending data and sleeping
   // TODO: Read the internal temperature sensor MCP9700 connected to A3?
 
   // check if returns are valid, if they are NaN (not a number) then something went wrong!
   if (isnan(t) || isnan(h)) {
       Serial.println("Failed to read from DHT");
+      blink(2); 
   } 
   else {
     long voltage = readVcc();
@@ -137,7 +138,7 @@ void loop() {
     radio.powerDown();
 
     // sleep for 30 minutes
-    for (byte i = 0; i < 30; ++i) {
+    for (byte i = 0; i < 15; ++i) {
         Sleepy::loseSomeTime(60000);
     }
 
